@@ -67,7 +67,11 @@ splash.update_text('importing labscript suite modules')
 from labscript_utils.connections import ConnectionTable
 from labscript_utils import device_registry
 
-from labscript_utils.labconfig import LabConfig, save_appconfig, load_appconfig
+from labscript_utils.labconfig import (
+    LabConfig,
+    save_appconfig,
+    load_appconfig,
+)
 from labscript_utils.ls_zprocess import ZMQServer, ProcessTree
 process_tree = ProcessTree.instance()
 process_tree.zlock_client.set_process_name('runviewer')
@@ -590,7 +594,12 @@ class RunViewer(object):
             inmain_later(self.load_shot, filepath)
 
     def on_load_channel_config(self):
-        config_file = QFileDialog.getOpenFileName(self.ui, "Select file to load", self.default_config_path, "Config files (*.ini)")
+        config_file = QFileDialog.getOpenFileName(
+            self.ui,
+            "Select file to load",
+            self.default_config_path,
+            "Config files (*.toml *.ini)",
+        )
         if isinstance(config_file, tuple):
             config_file, _ = config_file
         if config_file:
@@ -615,11 +624,17 @@ class RunViewer(object):
                     self.channel_model.insertRow(row, check_item)
 
     def on_save_channel_config(self):
-        save_file = QFileDialog.getSaveFileName(self.ui, 'Select  file to save current channel configuration', self.default_config_path, "config files (*.ini)")
+        save_file = QFileDialog.getSaveFileName(
+            self.ui,
+            'Select  file to save current channel configuration',
+            self.default_config_path,
+            "Config files (*.toml)",
+        )
         if type(save_file) is tuple:
             save_file, _ = save_file
 
         if save_file:
+            save_file = os.path.abspath(save_file)
 
             channels = []
             for row in range(self.channel_model.rowCount()):
