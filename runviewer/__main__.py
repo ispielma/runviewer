@@ -20,7 +20,7 @@ desktop_app.set_process_appid('runviewer')
 
 # Splash screen
 from runviewer import runviewer_dir
-from labscript_utils.splash import Splash
+from labscript_utils.splash import Splash, get_qapplication, run_qapplication
 splash = Splash(os.path.join(runviewer_dir, 'runviewer.svg'))
 splash.show()
 
@@ -32,7 +32,6 @@ import logging
 from queue import Queue
 import ast
 import pprint
-import signal
 import concurrent.futures
 import traceback
 
@@ -1661,9 +1660,7 @@ class RunviewerServer(ZMQServer):
 
 
 if __name__ == "__main__":
-    qapplication = QApplication.instance()
-    if qapplication is None:
-        qapplication = QApplication(sys.argv)
+    qapplication = get_qapplication()
 
     shots_to_process_queue = Queue()
 
@@ -1675,15 +1672,4 @@ if __name__ == "__main__":
 
     app = RunViewer(exp_config)
     splash.hide()
-
-    def execute_program():
-        qapplication.exec_()
-
-    # Let the interpreter run every 500ms so it sees Ctrl-C interrupts:
-    timer = QTimer()
-    timer.start(500)
-    timer.timeout.connect(lambda: None)
-    # Upon seeing a ctrl-c interrupt, quit the event loop
-    signal.signal(signal.SIGINT, lambda *args: qapplication.exit())
-
-    sys.exit(execute_program())
+    sys.exit(run_qapplication(qapplication))
