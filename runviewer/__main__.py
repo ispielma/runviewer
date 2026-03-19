@@ -69,9 +69,11 @@ from labscript_utils import device_registry
 
 from labscript_utils.labconfig import (
     LabConfig,
+    get_app_saved_configs_dir,
     save_appconfig,
     load_appconfig,
 )
+from labscript_utils.qtwidgets.appconfig import select_config_file
 from labscript_utils.ls_zprocess import ZMQServer, ProcessTree
 process_tree = ProcessTree.instance()
 process_tree.zlock_client.set_process_name('runviewer')
@@ -330,13 +332,7 @@ class RunViewer(object):
         self.plot_items = {}
         self.shutter_lines = {}
 
-        try:
-            self.default_config_path = os.path.join(exp_config.get('DEFAULT', 'app_saved_configs'), 'runviewer')
-        except LabConfig.NoOptionError:
-            exp_config.set('DEFAULT', 'app_saved_configs', os.path.join('%(labscript_suite)s', 'userlib', 'app_saved_configs', '%(apparatus_name)s'))
-            self.default_config_path = os.path.join(exp_config.get('DEFAULT', 'app_saved_configs'), 'runviewer')
-        if not os.path.exists(self.default_config_path):
-            os.makedirs(self.default_config_path)
+        self.default_config_path = get_app_saved_configs_dir(exp_config, 'runviewer')
 
         self.last_opened_shots_folder = exp_config.get('paths', 'experiment_shot_storage')
 
@@ -594,14 +590,13 @@ class RunViewer(object):
             inmain_later(self.load_shot, filepath)
 
     def on_load_channel_config(self):
-        config_file = QFileDialog.getOpenFileName(
+        config_file = select_config_file(
             self.ui,
             "Select file to load",
             self.default_config_path,
             "Config files (*.toml *.ini)",
+            save=False,
         )
-        if isinstance(config_file, tuple):
-            config_file, _ = config_file
         if config_file:
             runviewer_config = load_appconfig(config_file).get('runviewer_state', {})
             channels = runviewer_config.get('channels', {})
@@ -624,18 +619,14 @@ class RunViewer(object):
                     self.channel_model.insertRow(row, check_item)
 
     def on_save_channel_config(self):
-        save_file = QFileDialog.getSaveFileName(
+        save_file = select_config_file(
             self.ui,
             'Select  file to save current channel configuration',
             self.default_config_path,
             "Config files (*.toml)",
+            save=True,
         )
-        if type(save_file) is tuple:
-            save_file, _ = save_file
-
         if save_file:
-            save_file = os.path.abspath(save_file)
-
             channels = []
             for row in range(self.channel_model.rowCount()):
                 item = self.channel_model.item(row)
