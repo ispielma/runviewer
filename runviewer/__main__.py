@@ -72,7 +72,12 @@ from labscript_utils.labconfig import (
     save_appconfig,
     load_appconfig,
 )
-from labscript_utils.qtwidgets.appconfig import select_config_file
+from labscript_utils.qtwidgets.appconfig import (
+    error_dialog,
+    question_dialog,
+    select_config_file,
+    select_open_files,
+)
 from labscript_utils.ls_zprocess import ZMQServer, ProcessTree
 process_tree = ProcessTree.instance()
 process_tree.zlock_client.set_process_name('runviewer')
@@ -649,12 +654,13 @@ class RunViewer(object):
                             line.hide()
 
     def on_add_shot(self):
-        selected_files = QFileDialog.getOpenFileNames(self.ui, "Select file to load", self.last_opened_shots_folder, "HDF5 files (*.h5 *.hdf5)")
+        selected_files = select_open_files(
+            self.ui,
+            "Select file to load",
+            self.last_opened_shots_folder,
+            "HDF5 files (*.h5 *.hdf5)",
+        )
         popup_warning = False
-        if isinstance(selected_files, tuple):
-            selected_files, _ = selected_files
-        # Convert to standard platform specific path, otherwise Qt likes forward slashes:
-        selected_files = [os.path.abspath(str(shot_file)) for shot_file in selected_files]
         if len(selected_files) > 0:
             self.last_opened_shots_folder = os.path.dirname(selected_files[0])
 
@@ -673,12 +679,11 @@ class RunViewer(object):
                 popup_warning = True
                 raise
         if popup_warning:
-            message = QMessageBox()
-            message.setText("Warning: Some shots were not loaded because they were not valid hdf5 files")
-            message.setIcon(QMessageBox.Warning)
-            message.setWindowTitle("Runviewer")
-            message.setStandardButtons(QMessageBox.Ok)
-            message.exec_()
+            error_dialog(
+                self.ui,
+                "Runviewer",
+                "Warning: Some shots were not loaded because they were not valid hdf5 files",
+            )
 
     def on_remove_shots(self, confirm=True):
         # Get the selection model from the treeview
@@ -688,11 +693,12 @@ class RunViewer(object):
         # sort in descending order to prevent index changes of rows to be deleted
         selected_row_list.sort(reverse=True)
 
-        if confirm:
-            reply = QMessageBox.question(self.ui, 'Runviewer', 'Remove {} shots?'.format(len(selected_row_list)),
-                                           QMessageBox.Yes | QMessageBox.No)
-            if reply == QMessageBox.No:
-                return
+        if confirm and not question_dialog(
+            self.ui,
+            'Runviewer',
+            'Remove {} shots?'.format(len(selected_row_list)),
+        ):
+            return
 
         for row in selected_row_list:
             item = self.shot_model.item(row, SHOT_MODEL__CHECKBOX_INDEX)
