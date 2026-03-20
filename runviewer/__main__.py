@@ -343,6 +343,12 @@ class RunViewer(object):
 
         self.ui.actionOpen_Shot.triggered.connect(self.on_add_shot)
         self.ui.actionQuit.triggered.connect(self.ui.close)
+        self.ui.actionLoad_runviewer_state.triggered.connect(
+            self.on_load_runviewer_state
+        )
+        self.ui.actionSave_runviewer_state.triggered.connect(
+            self.on_save_runviewer_state
+        )
         self.ui.actionLoad_channel_config.triggered.connect(self.on_load_channel_config)
         self.ui.actionSave_channel_config.triggered.connect(self.on_save_channel_config)
 
@@ -391,9 +397,11 @@ class RunViewer(object):
         self.scalehandler = None
 
     def get_default_config_file(self):
+        """Return the default TOML path for runviewer app state."""
         return os.path.join(self.default_config_path, 'runviewer.toml')
 
     def get_save_data(self):
+        """Return the runviewer GUI state stored in TOML app config."""
         window_size = self.ui.size()
         window_pos = self.ui.pos()
         return {
@@ -404,11 +412,14 @@ class RunViewer(object):
         }
 
     def save_configuration(self, save_file):
+        """Save the current runviewer GUI state to a TOML config file."""
         save_data = self.get_save_data()
         save_file = save_appconfig(save_file, {'runviewer_state': save_data})
+        """Load runviewer GUI state from a TOML/legacy INI config file."""
         self.config_actions.mark_clean(save_file, save_data)
 
     def load_configuration(self, filename):
+        """Load runviewer GUI state from a TOML/legacy INI config file."""
         appconfig, save_target = load_appconfig(filename, return_save_path=True)
         save_data = appconfig.get('runviewer_state', {})
         if 'window_size' in save_data:
