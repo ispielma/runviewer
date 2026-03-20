@@ -20,7 +20,12 @@ desktop_app.set_process_appid('runviewer')
 
 # Splash screen
 from runviewer import runviewer_dir
-from labscript_utils.splash import Splash, get_qapplication, run_qapplication
+from labscript_utils.splash import (
+    Splash,
+    FirstPaintMainWindow,
+    get_qapplication,
+    run_qapplication,
+)
 splash = Splash(os.path.join(runviewer_dir, 'runviewer.svg'))
 splash.show()
 
@@ -155,6 +160,19 @@ class ScaleHandler():
         self.scaled_stop_time = self.get_scaled_time(self.org_stop_time)
 
 
+class RunviewerMainWindow(FirstPaintMainWindow):
+    """Main window with a close hook for shared app-config prompts."""
+
+    def __init__(self, app, *args, **kwargs):
+        self.app = app
+        super().__init__(*args, **kwargs)
+
+    def closeEvent(self, event):
+        if self.app.on_close_event():
+            return super().closeEvent(event)
+        event.ignore()
+
+
 class ColourDelegate(QItemDelegate):
 
     def __init__(self, view, *args, **kwargs):
@@ -209,7 +227,10 @@ class ColourDelegate(QItemDelegate):
 class RunViewer(object):
     def __init__(self, exp_config):
         splash.update_text('loading graphical interface')
-        self.ui = UiLoader().load(os.path.join(runviewer_dir, 'main.ui'))
+        self.exp_config = exp_config
+        self.ui = UiLoader().load(
+            os.path.join(runviewer_dir, 'main.ui'), RunviewerMainWindow(self)
+        )
 
         # setup shot treeview model
         self.shot_model = QStandardItemModel()
@@ -343,12 +364,6 @@ class RunViewer(object):
 
         self.ui.actionOpen_Shot.triggered.connect(self.on_add_shot)
         self.ui.actionQuit.triggered.connect(self.ui.close)
-        self.ui.actionLoad_runviewer_state.triggered.connect(
-            self.on_load_runviewer_state
-        )
-        self.ui.actionSave_runviewer_state.triggered.connect(
-            self.on_save_runviewer_state
-        )
         self.ui.actionLoad_channel_config.triggered.connect(self.on_load_channel_config)
         self.ui.actionSave_channel_config.triggered.connect(self.on_save_channel_config)
 
@@ -356,16 +371,13 @@ class RunViewer(object):
         QShortcut('Del', self.ui.shot_treeview, lambda: self.on_remove_shots(confirm=True))
         QShortcut('Shift+Del', self.ui.shot_treeview, lambda: self.on_remove_shots(confirm=False))
 
-        splash.update_text('done')
-        self.ui.show()
-
         # internal variables
         #self._channels_list = {}
         self.plot_widgets = {}
         self.plot_items = {}
         self.shutter_lines = {}
 
-        self.default_config_path = get_app_saved_configs_dir(exp_config, 'runviewer')
+        self.default_config_path = get_app_saved_configs_dir(self.exp_config, 'runviewer')
         self.config_actions = AppConfigActions(
             self.ui,
             'runviewer configuration',
@@ -380,7 +392,9 @@ class RunViewer(object):
             lambda message: error_dialog(self.ui, 'Runviewer', message),
         )
 
-        self.last_opened_shots_folder = exp_config.get('paths', 'experiment_shot_storage')
+        self.last_opened_shots_folder = self.exp_config.get(
+            'paths', 'experiment_shot_storage'
+        )
 
         # start resample thread
         self._resample = False
@@ -396,9 +410,43 @@ class RunViewer(object):
         self.scale_time = False
         self.scalehandler = None
 
+        autoload_config_file = self.get_autoload_configuration_file()
+        if autoload_config_file is not None:
+            self.ui.setEnabled(False)
+
+            def load_the_config_file():
+                try:
+                    self.load_configuration(autoload_config_file)
+                except Exception as exc:
+                    error_dialog(
+                        self.ui,
+                        'Runviewer',
+                        'Could not load config file: %s: %s'
+                        % (exc.__class__.__name__, str(exc)),
+                    )
+                finally:
+                    self.ui.setEnabled(True)
+
+            self.ui.firstPaint.connect(
+                lambda: QTimer.singleShot(50, load_the_config_file)
+            )
+
+        splash.update_text('done')
+        self.ui.show()
+
     def get_default_config_file(self):
         """Return the default TOML path for runviewer app state."""
         return os.path.join(self.default_config_path, 'runviewer.toml')
+
+    def get_autoload_configuration_file(self):
+        """Return the config file to autoload, if one is configured or present."""
+        try:
+            return self.exp_config.get('runviewer', 'autoload_config_file')
+        except (LabConfig.NoOptionError, LabConfig.NoSectionError):
+            default_config = self.get_default_config_file()
+            if os.path.exists(default_config):
+                return default_config
+            return None
 
     def get_save_data(self):
         """Return the runviewer GUI state stored in TOML app config."""
@@ -415,7 +463,6 @@ class RunViewer(object):
         """Save the current runviewer GUI state to a TOML config file."""
         save_data = self.get_save_data()
         save_file = save_appconfig(save_file, {'runviewer_state': save_data})
-        """Load runviewer GUI state from a TOML/legacy INI config file."""
         self.config_actions.mark_clean(save_file, save_data)
 
     def load_configuration(self, filename):
@@ -431,6 +478,17 @@ class RunViewer(object):
         if 'splitter_2' in save_data:
             self.ui.splitter_2.setSizes(save_data['splitter_2'])
         self.config_actions.mark_clean(save_target, self.get_save_data())
+
+    def on_close_event(self):
+        """Prompt to save runviewer app config changes before quitting."""
+        return self.config_actions.prompt_to_save_if_dirty(
+            'Quit runviewer',
+            (
+                'Current configuration (window layout and other GUI state) '
+                "has changed: save config file '%s'?"
+            )
+            % self.config_actions.last_save_config_file,
+        )
 
     def _update_markers(self, index):
         for line, plot in self.all_marker_items.items():
