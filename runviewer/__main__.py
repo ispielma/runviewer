@@ -1670,7 +1670,7 @@ if __name__ == "__main__":
 
     shots_to_process_queue = Queue()
 
-    exp_config = LabConfig(required_params = {"DEFAULT": ["apparatus_name"], "paths": ["shared_drive", "experiment_shot_storage"], 'ports': ['runviewer']})
+    exp_config = LabConfig(required_params = {"default": ["apparatus_name"], "paths": ["shared_drive", "experiment_shot_storage"], 'ports': ['runviewer']})
 
     port = int(exp_config.get('ports', 'runviewer'))
     # Start experiment server
