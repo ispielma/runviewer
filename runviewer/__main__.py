@@ -289,6 +289,8 @@ class RunViewer(object):
 
         self.ui.actionOpen_Shot.setIcon(QIcon(':/qtutils/fugue/plus'))
         self.ui.actionQuit.setIcon(QIcon(':/qtutils/fugue/cross-button'))
+        self.ui.actionLoad_runviewer_state.setIcon(QIcon(':/qtutils/fugue/folder-open'))
+        self.ui.actionSave_runviewer_state.setIcon(QIcon(':/qtutils/fugue/disk'))
         self.ui.actionLoad_channel_config.setIcon(QIcon(':/qtutils/fugue/folder-open'))
         self.ui.actionSave_channel_config.setIcon(QIcon(':/qtutils/fugue/disk'))
 
@@ -314,6 +316,12 @@ class RunViewer(object):
 
         self.ui.actionOpen_Shot.triggered.connect(self.on_add_shot)
         self.ui.actionQuit.triggered.connect(self.ui.close)
+        self.ui.actionLoad_runviewer_state.triggered.connect(
+            self.on_load_runviewer_state
+        )
+        self.ui.actionSave_runviewer_state.triggered.connect(
+            self.on_save_runviewer_state
+        )
         self.ui.actionLoad_channel_config.triggered.connect(self.on_load_channel_config)
         self.ui.actionSave_channel_config.triggered.connect(self.on_save_channel_config)
 
@@ -331,12 +339,28 @@ class RunViewer(object):
         self.shutter_lines = {}
 
         try:
-            self.default_config_path = os.path.join(exp_config.get('DEFAULT', 'app_saved_configs'), 'runviewer')
+            self.default_config_path = os.path.join(
+                exp_config.get('default', 'app_saved_configs'), 'runviewer'
+            )
         except LabConfig.NoOptionError:
-            exp_config.set('DEFAULT', 'app_saved_configs', os.path.join('%(labscript_suite)s', 'userlib', 'app_saved_configs', '%(apparatus_name)s'))
-            self.default_config_path = os.path.join(exp_config.get('DEFAULT', 'app_saved_configs'), 'runviewer')
+            exp_config.set(
+                'default',
+                'app_saved_configs',
+                os.path.join(
+                    '%(labscript_suite)s',
+                    'userlib',
+                    'app_saved_configs',
+                    '%(apparatus_name)s',
+                ),
+            )
+            self.default_config_path = os.path.join(
+                exp_config.get('default', 'app_saved_configs'), 'runviewer'
+            )
         if not os.path.exists(self.default_config_path):
             os.makedirs(self.default_config_path)
+
+        self.last_save_config_file = None
+        self.last_save_data = None
 
         self.last_opened_shots_folder = exp_config.get('paths', 'experiment_shot_storage')
 
@@ -353,6 +377,67 @@ class RunViewer(object):
 
         self.scale_time = False
         self.scalehandler = None
+
+    def get_default_config_file(self):
+        """Return the default TOML path for runviewer app state."""
+        return os.path.join(self.default_config_path, 'runviewer.toml')
+
+    def get_save_data(self):
+        """Return the runviewer GUI state stored in TOML app config."""
+        window_size = self.ui.size()
+        window_pos = self.ui.pos()
+        return {
+            'window_size': [window_size.width(), window_size.height()],
+            'window_pos': [window_pos.x(), window_pos.y()],
+            'splitter': self.ui.splitter.sizes(),
+            'splitter_2': self.ui.splitter_2.sizes(),
+        }
+
+    def save_configuration(self, save_file):
+        """Save the current runviewer GUI state to a TOML config file."""
+        save_data = self.get_save_data()
+        save_file = save_appconfig(save_file, {'runviewer_state': save_data})
+        self.last_save_config_file = save_file
+        self.last_save_data = save_data
+
+    def load_configuration(self, filename):
+        """Load runviewer GUI state from a TOML/legacy INI config file."""
+        appconfig, save_target = load_appconfig(filename, return_save_path=True)
+        save_data = appconfig.get('runviewer_state', {})
+        if 'window_size' in save_data:
+            self.ui.resize(*save_data['window_size'])
+        if 'window_pos' in save_data:
+            self.ui.move(*save_data['window_pos'])
+        if 'splitter' in save_data:
+            self.ui.splitter.setSizes(save_data['splitter'])
+        if 'splitter_2' in save_data:
+            self.ui.splitter_2.setSizes(save_data['splitter_2'])
+        self.last_save_config_file = save_target
+        self.last_save_data = self.get_save_data()
+
+    def on_load_runviewer_state(self):
+        config_file = QFileDialog.getOpenFileName(
+            self.ui,
+            'Select file to load',
+            self.last_save_config_file or self.get_default_config_file(),
+            'Config files (*.toml *.ini)',
+        )
+        if isinstance(config_file, tuple):
+            config_file, _ = config_file
+        if config_file:
+            self.load_configuration(os.path.abspath(config_file))
+
+    def on_save_runviewer_state(self):
+        save_file = QFileDialog.getSaveFileName(
+            self.ui,
+            'Select file to save current runviewer state',
+            self.last_save_config_file or self.get_default_config_file(),
+            'Config files (*.toml)',
+        )
+        if isinstance(save_file, tuple):
+            save_file, _ = save_file
+        if save_file:
+            self.save_configuration(os.path.abspath(save_file))
 
     def _update_markers(self, index):
         for line, plot in self.all_marker_items.items():
