@@ -73,6 +73,7 @@ from labscript_utils.labconfig import (
     load_appconfig,
 )
 from labscript_utils.qtwidgets.appconfig import (
+    AppConfigActions,
     error_dialog,
     question_dialog,
     select_config_file,
@@ -295,8 +296,30 @@ class RunViewer(object):
 
         self.ui.actionOpen_Shot.setIcon(QIcon(':/qtutils/fugue/plus'))
         self.ui.actionQuit.setIcon(QIcon(':/qtutils/fugue/cross-button'))
+        self.ui.actionLoad_runviewer_state.setIcon(QIcon(':/qtutils/fugue/folder-open'))
+        self.ui.actionSave_runviewer_state.setIcon(QIcon(':/qtutils/fugue/disk'))
         self.ui.actionLoad_channel_config.setIcon(QIcon(':/qtutils/fugue/folder-open'))
         self.ui.actionSave_channel_config.setIcon(QIcon(':/qtutils/fugue/disk'))
+
+        self.ui.actionLoad_runviewer_state.setText('Load configuration')
+        self.ui.actionSave_runviewer_state.setText('Save configuration')
+        self.actionSave_configuration_as = QAction('Save configuration as', self.ui)
+        self.actionSave_configuration_as.setIcon(QIcon(':/qtutils/fugue/disks'))
+        self.actionRevert_configuration = QAction('Revert configuration', self.ui)
+        self.actionRevert_configuration.setIcon(QIcon(':/qtutils/fugue/arrow-circle-225-left'))
+        self.ui.menuFile.insertAction(
+            self.ui.actionLoad_channel_config, self.ui.actionLoad_runviewer_state
+        )
+        self.ui.menuFile.insertAction(
+            self.ui.actionLoad_channel_config, self.ui.actionSave_runviewer_state
+        )
+        self.ui.menuFile.insertAction(
+            self.ui.actionLoad_channel_config, self.actionSave_configuration_as
+        )
+        self.ui.menuFile.insertAction(
+            self.ui.actionLoad_channel_config, self.actionRevert_configuration
+        )
+        self.ui.menuFile.insertSeparator(self.ui.actionLoad_channel_config)
 
         # disable buttons that are not yet implemented to help avoid confusion!
         self.ui.group_channel.setEnabled(False)
@@ -337,6 +360,19 @@ class RunViewer(object):
         self.shutter_lines = {}
 
         self.default_config_path = get_app_saved_configs_dir(exp_config, 'runviewer')
+        self.config_actions = AppConfigActions(
+            self.ui,
+            'runviewer configuration',
+            self.get_default_config_file,
+            self.ui.actionSave_runviewer_state,
+            self.actionSave_configuration_as,
+            self.ui.actionLoad_runviewer_state,
+            self.actionRevert_configuration,
+            self.get_save_data,
+            self.save_configuration,
+            self.load_configuration,
+            lambda message: error_dialog(self.ui, 'Runviewer', message),
+        )
 
         self.last_opened_shots_folder = exp_config.get('paths', 'experiment_shot_storage')
 
@@ -353,6 +389,37 @@ class RunViewer(object):
 
         self.scale_time = False
         self.scalehandler = None
+
+    def get_default_config_file(self):
+        return os.path.join(self.default_config_path, 'runviewer.toml')
+
+    def get_save_data(self):
+        window_size = self.ui.size()
+        window_pos = self.ui.pos()
+        return {
+            'window_size': [window_size.width(), window_size.height()],
+            'window_pos': [window_pos.x(), window_pos.y()],
+            'splitter': self.ui.splitter.sizes(),
+            'splitter_2': self.ui.splitter_2.sizes(),
+        }
+
+    def save_configuration(self, save_file):
+        save_data = self.get_save_data()
+        save_file = save_appconfig(save_file, {'runviewer_state': save_data})
+        self.config_actions.mark_clean(save_file, save_data)
+
+    def load_configuration(self, filename):
+        appconfig, save_target = load_appconfig(filename, return_save_path=True)
+        save_data = appconfig.get('runviewer_state', {})
+        if 'window_size' in save_data:
+            self.ui.resize(*save_data['window_size'])
+        if 'window_pos' in save_data:
+            self.ui.move(*save_data['window_pos'])
+        if 'splitter' in save_data:
+            self.ui.splitter.setSizes(save_data['splitter'])
+        if 'splitter_2' in save_data:
+            self.ui.splitter_2.setSizes(save_data['splitter_2'])
+        self.config_actions.mark_clean(save_target, self.get_save_data())
 
     def _update_markers(self, index):
         for line, plot in self.all_marker_items.items():
