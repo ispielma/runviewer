@@ -488,7 +488,7 @@ class RunViewer(object):
                 'Current configuration (window layout and other GUI state) '
                 "has changed: save config file '%s'?"
             )
-            % self.config_actions.last_save_config_file,
+            % self.config_actions.current_save_target(),
         )
 
     def _update_markers(self, index):
