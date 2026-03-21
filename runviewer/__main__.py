@@ -467,6 +467,7 @@ class RunViewer(object):
 
     def load_configuration(self, filename):
         """Load runviewer GUI state from a TOML/legacy INI config file."""
+        # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
         appconfig, save_target = load_appconfig(filename, return_save_path=True)
         save_data = appconfig.get('runviewer_state', {})
         if 'window_size' in save_data:
@@ -730,6 +731,7 @@ class RunViewer(object):
             inmain_later(self.load_shot, filepath)
 
     def on_load_channel_config(self):
+        # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
         config_file = select_config_file(
             self.ui,
             "Select file to load",
@@ -738,6 +740,7 @@ class RunViewer(object):
             save=False,
         )
         if config_file:
+            # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
             runviewer_config = load_appconfig(config_file).get('runviewer_state', {})
             channels = runviewer_config.get('channels', {})
 
