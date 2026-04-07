@@ -69,6 +69,7 @@ from labscript_utils import device_registry
 
 from labscript_utils.labconfig import (
     LabConfig,
+    LabscriptApplication,
     save_appconfig,
     load_appconfig,
 )
@@ -199,10 +200,15 @@ class ColourDelegate(QItemDelegate):
         editor.setGeometry(option.rect)
 
 
-class RunViewer(object):
+class RunViewer(LabscriptApplication):
+    app_name = 'runviewer'
+    default_config_filename = 'runviewer.toml'
+
     def __init__(self, exp_config):
         splash.update_text('loading graphical interface')
         self.ui = UiLoader().load(os.path.join(runviewer_dir, 'main.ui'))
+        self.exp_config = exp_config
+        self.init_config_window_title()
 
         # setup shot treeview model
         self.shot_model = QStandardItemModel()
@@ -338,29 +344,13 @@ class RunViewer(object):
         self.plot_items = {}
         self.shutter_lines = {}
 
-        try:
-            self.default_config_path = os.path.join(
-                exp_config.get('default', 'app_saved_configs'), 'runviewer'
-            )
-        except LabConfig.NoOptionError:
-            exp_config.set(
-                'default',
-                'app_saved_configs',
-                os.path.join(
-                    '%(labscript_suite)s',
-                    'userlib',
-                    'app_saved_configs',
-                    '%(apparatus_name)s',
-                ),
-            )
-            self.default_config_path = os.path.join(
-                exp_config.get('default', 'app_saved_configs'), 'runviewer'
-            )
-        if not os.path.exists(self.default_config_path):
-            os.makedirs(self.default_config_path)
+        self.default_config_path = os.path.dirname(
+            self.get_default_config_file(ensure_directory=True)
+        )
 
         self.last_save_config_file = None
         self.last_save_data = None
+        self.set_config_window_title(self.get_default_config_file())
 
         self.last_opened_shots_folder = exp_config.get('paths', 'experiment_shot_storage')
 
@@ -377,10 +367,6 @@ class RunViewer(object):
 
         self.scale_time = False
         self.scalehandler = None
-
-    def get_default_config_file(self):
-        """Return the default TOML path for runviewer app state."""
-        return os.path.join(self.default_config_path, 'runviewer.toml')
 
     def get_save_data(self):
         """Return the runviewer GUI state stored in TOML app config."""
@@ -399,6 +385,7 @@ class RunViewer(object):
         save_file = save_appconfig(save_file, {'runviewer_state': save_data})
         self.last_save_config_file = save_file
         self.last_save_data = save_data
+        self.set_config_window_title(save_file)
 
     def load_configuration(self, filename):
         """Load runviewer GUI state from a TOML/legacy INI config file."""
@@ -415,6 +402,7 @@ class RunViewer(object):
             self.ui.splitter_2.setSizes(save_data['splitter_2'])
         self.last_save_config_file = save_target
         self.last_save_data = self.get_save_data()
+        self.set_config_window_title(save_target)
 
     def on_load_runviewer_state(self):
         # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.

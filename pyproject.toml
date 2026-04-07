@@ -32,7 +32,7 @@ dependencies = [
     "labscript_utils>=3.1.0b1",
     "labscript-c-extensions",
     "pyqtgraph>=0.11.1",
-    "qtutils>=2.0.0",
+    "qtutils>=4.1.3",
     "zprocess",
     "numpy>=1.15",
     "scipy",
@@ -54,9 +54,9 @@ Tracker = "https://github.com/labscript-suite/runviewer/issues/"
 [project.optional-dependencies]
 docs = [
     "PyQt5",
-    "Sphinx==7.2.6",
-    "sphinx-rtd-theme==2.0.0",
-    "myst_parser==2.0.0",
+    "Sphinx==8.2.3",
+    "sphinx-rtd-theme==3.0.2",
+    "myst_parser==4.0.1",
 ]
 
 [project.scripts]
