@@ -766,7 +766,7 @@ class RunViewer(object):
             message.setIcon(QMessageBox.Warning)
             message.setWindowTitle("Runviewer")
             message.setStandardButtons(QMessageBox.Ok)
-            message.exec_()
+            message.exec()
 
     def on_remove_shots(self, confirm=True):
         # Get the selection model from the treeview
@@ -1764,7 +1764,7 @@ if __name__ == "__main__":
     splash.hide()
 
     def execute_program():
-        qapplication.exec_()
+        qapplication.exec()
 
     # Let the interpreter run every 500ms so it sees Ctrl-C interrupts:
     timer = QTimer()
