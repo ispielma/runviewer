@@ -703,10 +703,19 @@ class RunViewer(LabscriptApplication):
                     self.channel_model.insertRow(row, check_item)
 
     def on_save_channel_config(self):
+        # The panel is offered a filename rather than just the folder. A save
+        # panel with no extension to preserve supplies one of its own, taken
+        # from the host's type database rather than from the name filter below,
+        # which is not necessarily the extension asked for. Given a name it
+        # keeps that extension and typing replaces only the stem, so 'untitled'
+        # is what the operator types over and '.toml' is what survives. The
+        # stem is not the default configuration file's, which sits in this same
+        # folder and holds the runviewer state rather than a channel list.
+        suggested_file = os.path.join(self.default_config_path, 'untitled.toml')
         save_file = QFileDialog.getSaveFileName(
             self.ui,
             'Select  file to save current channel configuration',
-            self.default_config_path,
+            suggested_file,
             "Config files (*.toml)",
         )
         if type(save_file) is tuple:
