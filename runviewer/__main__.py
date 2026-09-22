@@ -72,6 +72,7 @@ from labscript_utils import device_registry
 from labscript_utils.labconfig import (
     LabConfig,
     LabscriptApplication,
+    appconfig_path_with_suffix,
     save_appconfig,
     load_appconfig,
 )
@@ -703,17 +704,34 @@ class RunViewer(LabscriptApplication):
                     self.channel_model.insertRow(row, check_item)
 
     def on_save_channel_config(self):
+        # The panel is offered a filename rather than just the folder. A save
+        # panel with no extension to preserve supplies one of its own, taken
+        # from the host's type database rather than from the name filter below,
+        # which is not necessarily the extension asked for. Given a name it
+        # keeps that extension and typing replaces only the stem, so 'untitled'
+        # is what the operator types over and '.toml' is what survives. The
+        # stem is not the default configuration file's, which sits in this same
+        # folder and holds the runviewer state rather than a channel list.
+        suggested_file = os.path.join(self.default_config_path, 'untitled.toml')
         save_file = QFileDialog.getSaveFileName(
             self.ui,
             'Select  file to save current channel configuration',
-            self.default_config_path,
+            suggested_file,
             "Config files (*.toml)",
         )
         if type(save_file) is tuple:
             save_file, _ = save_file
 
         if save_file:
-            save_file = os.path.abspath(save_file)
+            # The name that comes back need not be the name that was offered:
+            # an operator can clear the extension, and a panel that resolved the
+            # name filter through the host's type database can return one nobody
+            # asked for. This dialog writes TOML either way. A name already
+            # ending in an app config extension has that extension replaced, so
+            # a legacy .ini name becomes the .toml file that supersedes it; any
+            # other name keeps all of itself, a channel configuration being free
+            # to have dots in its stem.
+            save_file = os.path.abspath(appconfig_path_with_suffix(save_file, '.toml'))
 
             channels = []
             for row in range(self.channel_model.rowCount()):
