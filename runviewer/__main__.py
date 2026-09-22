@@ -72,6 +72,7 @@ from labscript_utils import device_registry
 from labscript_utils.labconfig import (
     LabConfig,
     LabscriptApplication,
+    appconfig_path_with_suffix,
     save_appconfig,
     load_appconfig,
 )
@@ -722,7 +723,15 @@ class RunViewer(LabscriptApplication):
             save_file, _ = save_file
 
         if save_file:
-            save_file = os.path.abspath(save_file)
+            # The name that comes back need not be the name that was offered:
+            # an operator can clear the extension, and a panel that resolved the
+            # name filter through the host's type database can return one nobody
+            # asked for. This dialog writes TOML either way. A name already
+            # ending in an app config extension has that extension replaced, so
+            # a legacy .ini name becomes the .toml file that supersedes it; any
+            # other name keeps all of itself, a channel configuration being free
+            # to have dots in its stem.
+            save_file = os.path.abspath(appconfig_path_with_suffix(save_file, '.toml'))
 
             channels = []
             for row in range(self.channel_model.rowCount()):
