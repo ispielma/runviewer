@@ -23,7 +23,6 @@ desktop_app.set_process_appid(APPLICATION_NAME)
 
 # Splash screen
 from labscript_utils.splash import Splash
-from labscript_utils.qtwidgets.application import setup_application
 splash = Splash(
     os.path.join(runviewer_dir, 'runviewer.svg'), application_name=APPLICATION_NAME
 )
@@ -1356,7 +1355,6 @@ class RunviewerServer(ZMQServer):
 
 if __name__ == "__main__":
     qapplication = splash.qapplication
-    setup_application(qapplication)
 
     shots_to_process_queue = Queue()
 
