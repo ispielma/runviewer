@@ -34,7 +34,7 @@ dependencies = [
     "desktop-app>=0.1.2",
     "labscript_utils>=3.1.0b1",
     "labscript-c-extensions",
-    "pyqtgraph>=0.11.1",
+    "pyqtgraph>=0.13.0",
     "qtutils>=4.4.3",
     "zprocess",
     "numpy>=1.15",
